@@ -258,7 +258,6 @@ func (a *AuthServer) TokenEndpoint(w http.ResponseWriter, r *http.Request) {
 		case "password":
 			a.handlePasswordTokenRequest(w, r, client)
 		default:
-			// TODO: Support custom grant types
 			outputError(w, NewUnsupportedGrantTypeError(""))
 		}
 		return
