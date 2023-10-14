@@ -146,7 +146,11 @@ func AuthSuccess(w http.ResponseWriter, r *http.Request, code string) {
 	authRedirect(w, r, query)
 }
 
-func (a *AuthServer) createAndOutputTokens(w http.ResponseWriter, client interface{}, user interface{}) {
+func (a *AuthServer) createAndOutputTokens(
+	w http.ResponseWriter,
+	client interface{},
+	user interface{},
+) {
 	accessToken := NewAccessToken()
 	err := a.CreateTokenHandler(accessToken, client, user)
 	if err != nil {
@@ -170,7 +174,11 @@ func (a *AuthServer) createAndOutputTokens(w http.ResponseWriter, client interfa
 	output(w, response)
 }
 
-func (a *AuthServer) handleAuthorizationCodeTokenRequest(w http.ResponseWriter, r *http.Request, client interface{}) {
+func (a *AuthServer) handleAuthorizationCodeTokenRequest(
+	w http.ResponseWriter,
+	r *http.Request,
+	client interface{},
+) {
 	code := r.FormValue("code")
 	redirectUri := r.FormValue("redirect_uri")
 
@@ -192,7 +200,11 @@ func (a *AuthServer) handleAuthorizationCodeTokenRequest(w http.ResponseWriter, 
 	return
 }
 
-func (a *AuthServer) handlePasswordTokenRequest(w http.ResponseWriter, r *http.Request, client interface{}) {
+func (a *AuthServer) handlePasswordTokenRequest(
+	w http.ResponseWriter,
+	r *http.Request,
+	client interface{},
+) {
 	if a.PasswordGrantHandler == nil {
 		outputError(w, NewUnsupportedGrantTypeError("'password' grant type is not supported"))
 		return
