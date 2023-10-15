@@ -1,0 +1,54 @@
+@startuml
+namespace server {
+    class AuthServer << (S,Aquamarine) >> {
+        + ClientHandler ClientHandlerFunc
+        + CodeHandler CodeHandlerFunc
+        + PasswordGrantHandler PasswordGrantHandlerFunc
+        + CreateTokenHandler CreateTokenHandlerFunc
+
+        - createAndOutputTokens(w http.ResponseWriter, client <font color=blue>interface</font>{}, user <font color=blue>interface</font>{}) 
+        - handleAuthorizationCodeTokenRequest(w http.ResponseWriter, r *http.Request, client <font color=blue>interface</font>{}) 
+        - handlePasswordTokenRequest(w http.ResponseWriter, r *http.Request, client <font color=blue>interface</font>{}) 
+
+        + TokenEndpoint(w http.ResponseWriter, r *http.Request) 
+
+    }
+    class Error << (S,Aquamarine) >> {
+        + Code int
+        + ErrorName string
+        + Description string
+        + Uri string
+
+        + Error() string
+        + Json() string
+
+    }
+    class Token << (S,Aquamarine) >> {
+        + TokenType int
+        + Token string
+        + Expiration time.Time
+
+    }
+    class TokenResponse << (S,Aquamarine) >> {
+        + AccessToken string
+        + TokenType string
+        + ExpiresIn int
+        + RefreshToken string
+
+    }
+    class server.ClientHandlerFunc << (T, #FF7700) >>  {
+    }
+    class server.CodeHandlerFunc << (T, #FF7700) >>  {
+    }
+    class server.CreateTokenHandlerFunc << (T, #FF7700) >>  {
+    }
+    class server.PasswordGrantHandlerFunc << (T, #FF7700) >>  {
+    }
+}
+
+
+"server.<font color=blue>func</font>(*Token, <font color=blue>interface</font>{}, <font color=blue>interface</font>{}) error" #.. "server.CreateTokenHandlerFunc"
+"server.<font color=blue>func</font>(string, string) <font color=blue>interface</font>{}" #.. "server.ClientHandlerFunc"
+"server.<font color=blue>func</font>(string, string) <font color=blue>interface</font>{}" #.. "server.CodeHandlerFunc"
+"server.<font color=blue>func</font>(string, string) <font color=blue>interface</font>{}" #.. "server.PasswordGrantHandlerFunc"
+@enduml
