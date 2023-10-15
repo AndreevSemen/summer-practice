@@ -58,259 +58,21 @@ func (s *HttpTestSuite) testInvalidRequest(c *check.C, values url.Values) {
 	c.Assert(e.ErrorName, check.Equals, "invalid_request")
 }
 
-func (s *HttpTestSuite) TestTokenInvalidRequest(c *check.C) {
-	values := make(url.Values)
-	s.testInvalidRequest(c, values)
-
-	values.Add("grant_type", "authorization_code")
-	s.testInvalidRequest(c, values)
-
-	values.Add("client_id", "123")
-	s.testInvalidRequest(c, values)
-}
-
-func (s *HttpTestSuite) TestTokenUnsupportedGrantType(c *check.C) {
+func (s *HttpTestSuite) TestAuthSuccess(c *check.C) {
 	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
 	defer ts.Close()
 
 	values := make(url.Values)
-	values.Add("grant_type", "bogus")
-	values.Add("client_id", "123")
-	values.Add("client_secret", "s3cr3t")
-	resp, err := http.PostForm(ts.URL, values)
-	c.Assert(err, check.IsNil)
-	c.Assert(resp.StatusCode, check.Equals, 400)
-
-	body, err := io.ReadAll(resp.Body)
-	c.Assert(err, check.IsNil)
-	resp.Body.Close()
-
-	e := Error{}
-	err = json.Unmarshal(body, &e)
-	c.Assert(err, check.IsNil)
-	c.Assert(e.ErrorName, check.Equals, "unsupported_grant_type")
-}
-
-func (s *HttpTestSuite) TestTokenInvalidClientId(c *check.C) {
-	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
-	defer ts.Close()
-
-	values := make(url.Values)
-	values.Add("grant_type", "bogus")
-	values.Add("client_id", "invalid")
-	values.Add("client_secret", "s3cr3t")
-	resp, err := http.PostForm(ts.URL, values)
-	c.Assert(err, check.IsNil)
-	c.Assert(resp.StatusCode, check.Equals, 400)
-
-	body, err := io.ReadAll(resp.Body)
-	c.Assert(err, check.IsNil)
-	resp.Body.Close()
-
-	e := Error{}
-	err = json.Unmarshal(body, &e)
-	c.Assert(err, check.IsNil)
-	c.Assert(e.ErrorName, check.Equals, "invalid_client")
-}
-
-func (s *HttpTestSuite) TestTokenInvalidClientSecret(c *check.C) {
-	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
-	defer ts.Close()
-
-	values := make(url.Values)
-	values.Add("grant_type", "bogus")
-	values.Add("client_id", "123")
-	values.Add("client_secret", "invalid")
-	resp, err := http.PostForm(ts.URL, values)
-	c.Assert(err, check.IsNil)
-	c.Assert(resp.StatusCode, check.Equals, 400)
-
-	body, err := io.ReadAll(resp.Body)
-	c.Assert(err, check.IsNil)
-	resp.Body.Close()
-
-	e := Error{}
-	err = json.Unmarshal(body, &e)
-	c.Assert(err, check.IsNil)
-	c.Assert(e.ErrorName, check.Equals, "invalid_client")
-}
-
-func (s *HttpTestSuite) TestTokenPassword(c *check.C) {
-	PasswordGrantHandler(func(username string, password string) (user interface{}) {
-		return 1
-	})
-
-	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
-	defer ts.Close()
-
-	values := make(url.Values)
-	values.Add("client_id", "123")
-	values.Add("client_secret", "s3cr3t")
-	values.Add("grant_type", "password")
-	values.Add("username", "testuser")
-	values.Add("password", "testpassword")
-
-	resp, _ := http.PostForm(ts.URL, values)
-	c.Assert(resp.StatusCode, check.Equals, 200)
-
-	body, err := io.ReadAll(resp.Body)
-	c.Assert(err, check.IsNil)
-	resp.Body.Close()
-
-	token := new(TokenResponse)
-	err = json.Unmarshal(body, token)
-	c.Assert(err, check.IsNil)
-
-	c.Assert(token.AccessToken, check.Equals, "test_access_token")
-	c.Assert(token.RefreshToken, check.Equals, "test_refresh_token")
-	c.Assert(token.ExpiresIn, check.Equals, 3600)
-	c.Assert(token.TokenType, check.Equals, "Bearer")
-}
-
-func (s *HttpTestSuite) TestTokenPasswordInvalidRequest(c *check.C) {
-	PasswordGrantHandler(func(username string, password string) (user interface{}) {
-		return 1
-	})
-
-	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
-	defer ts.Close()
-
-	values := make(url.Values)
-	values.Add("client_id", "123")
-	values.Add("client_secret", "s3cr3t")
-	values.Add("grant_type", "password")
-	s.testInvalidRequest(c, values)
-
-	values.Add("username", "asdf")
-	s.testInvalidRequest(c, values)
-}
-
-func (s *HttpTestSuite) TestTokenPasswordInvalidGrant(c *check.C) {
-	PasswordGrantHandler(func(username string, password string) (user interface{}) {
-		return nil
-	})
-
-	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
-	defer ts.Close()
-
-	values := make(url.Values)
-	values.Add("grant_type", "password")
-	values.Add("client_id", "123")
-	values.Add("client_secret", "s3cr3t")
-	values.Add("username", "test_user")
-	values.Add("password", "invalid")
-	resp, err := http.PostForm(ts.URL, values)
-	c.Assert(err, check.IsNil)
-	c.Assert(resp.StatusCode, check.Equals, 400)
-
-	body, err := io.ReadAll(resp.Body)
-	c.Assert(err, check.IsNil)
-	resp.Body.Close()
-
-	e := Error{}
-	err = json.Unmarshal(body, &e)
-	c.Assert(err, check.IsNil)
-	c.Assert(e.ErrorName, check.Equals, "invalid_grant")
-}
-
-func (s *HttpTestSuite) TestTokenPasswordUnsupportedGrant(c *check.C) {
-	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
-	defer ts.Close()
-
-	values := make(url.Values)
-	values.Add("grant_type", "password")
-	values.Add("client_id", "123")
-	values.Add("client_secret", "s3cr3t")
-	resp, err := http.PostForm(ts.URL, values)
-	c.Assert(err, check.IsNil)
-	c.Assert(resp.StatusCode, check.Equals, 400)
-
-	body, err := io.ReadAll(resp.Body)
-	c.Assert(err, check.IsNil)
-	resp.Body.Close()
-
-	e := Error{}
-	err = json.Unmarshal(body, &e)
-	c.Assert(err, check.IsNil)
-	c.Assert(e.ErrorName, check.Equals, "unsupported_grant_type")
-}
-
-func (s *HttpTestSuite) TestTokenAuthorizationCode(c *check.C) {
-	CodeHandler(func(code, redirect_uri string) (user interface{}) {
-		return 1
-	})
-
-	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
-	defer ts.Close()
-
-	values := make(url.Values)
-	values.Add("client_id", "123")
-	values.Add("client_secret", "s3cr3t")
-	values.Add("grant_type", "authorization_code")
-	values.Add("code", "test_code")
+	values.Add("state", "test_state")
 	values.Add("redirect_uri", "http://www.example.com")
 
-	resp, _ := http.PostForm(ts.URL, values)
-	c.Assert(resp.StatusCode, check.Equals, 200)
-
-	body, err := io.ReadAll(resp.Body)
-	c.Assert(err, check.IsNil)
-	resp.Body.Close()
-
-	token := new(TokenResponse)
-	err = json.Unmarshal(body, token)
+	w := httptest.NewRecorder()
+	r, err := http.NewRequest("POST", ts.URL, nil)
 	c.Assert(err, check.IsNil)
 
-	c.Assert(token.AccessToken, check.Equals, "test_access_token")
-	c.Assert(token.RefreshToken, check.Equals, "test_refresh_token")
-	c.Assert(token.ExpiresIn, check.Equals, 3600)
-	c.Assert(token.TokenType, check.Equals, "Bearer")
-}
-
-func (s *HttpTestSuite) TestTokenAuthorizationCodeInvalidRequest(c *check.C) {
-	CodeHandler(func(code, redirect_uri string) (user interface{}) {
-		return 1
-	})
-
-	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
-	defer ts.Close()
-
-	values := make(url.Values)
-	values.Add("client_id", "123")
-	values.Add("client_secret", "s3cr3t")
-	values.Add("grant_type", "authorization_code")
-	s.testInvalidRequest(c, values)
-
-	values.Add("code", "asdf")
-	s.testInvalidRequest(c, values)
-}
-
-func (s *HttpTestSuite) TestTokenAuthorizationCodeAccessDenied(c *check.C) {
-	CodeHandler(func(code, redirect_uri string) (user interface{}) {
-		return nil
-	})
-
-	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
-	defer ts.Close()
-
-	values := make(url.Values)
-	values.Add("client_id", "123")
-	values.Add("client_secret", "s3cr3t")
-	values.Add("grant_type", "authorization_code")
-	values.Add("code", "test_code")
-	values.Add("redirect_uri", "http://www.example.com")
-
-	resp, _ := http.PostForm(ts.URL, values)
-	c.Assert(resp.StatusCode, check.Equals, 400)
-
-	body, err := io.ReadAll(resp.Body)
-	c.Assert(err, check.IsNil)
-	resp.Body.Close()
-
-	e := Error{}
-	err = json.Unmarshal(body, &e)
-	c.Assert(err, check.IsNil)
-	c.Assert(e.ErrorName, check.Equals, "access_denied")
+	AuthSuccess(w, r, "asdf")
+	c.Assert(w.Code, check.Equals, 200)
+	c.Assert(w.Header().Get("Location"), check.Equals, "http://www.example.com/")
 }
 
 func (s *HttpTestSuite) TestAuthValidate(c *check.C) {
@@ -388,19 +150,257 @@ func (s *HttpTestSuite) TestAuthValidateOobUrl(c *check.C) {
 	c.Assert(err, check.IsNil)
 }
 
-func (s *HttpTestSuite) TestAuthSuccess(c *check.C) {
+func (s *HttpTestSuite) TestTokenAuthorizationCode(c *check.C) {
+	CodeHandler(func(code, redirect_uri string) (user interface{}) {
+		return 1
+	})
+
 	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
 	defer ts.Close()
 
 	values := make(url.Values)
-	values.Add("state", "test_state")
+	values.Add("client_id", "123")
+	values.Add("client_secret", "s3cr3t")
+	values.Add("grant_type", "authorization_code")
+	values.Add("code", "test_code")
 	values.Add("redirect_uri", "http://www.example.com")
 
-	w := httptest.NewRecorder()
-	r, err := http.NewRequest("POST", ts.URL, nil)
+	resp, _ := http.PostForm(ts.URL, values)
+	c.Assert(resp.StatusCode, check.Equals, 200)
+
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, check.IsNil)
+	resp.Body.Close()
+
+	token := new(TokenResponse)
+	err = json.Unmarshal(body, token)
 	c.Assert(err, check.IsNil)
 
-	AuthSuccess(w, r, "asdf")
-	c.Assert(w.Code, check.Equals, 200)
-	c.Assert(w.Header().Get("Location"), check.Equals, "http://www.example.com/")
+	c.Assert(token.AccessToken, check.Equals, "test_access_token")
+	c.Assert(token.RefreshToken, check.Equals, "test_refresh_token")
+	c.Assert(token.ExpiresIn, check.Equals, 3600)
+	c.Assert(token.TokenType, check.Equals, "Bearer")
+}
+
+func (s *HttpTestSuite) TestTokenAuthorizationCodeAccessDenied(c *check.C) {
+	CodeHandler(func(code, redirect_uri string) (user interface{}) {
+		return nil
+	})
+
+	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
+	defer ts.Close()
+
+	values := make(url.Values)
+	values.Add("client_id", "123")
+	values.Add("client_secret", "s3cr3t")
+	values.Add("grant_type", "authorization_code")
+	values.Add("code", "test_code")
+	values.Add("redirect_uri", "http://www.example.com")
+
+	resp, _ := http.PostForm(ts.URL, values)
+	c.Assert(resp.StatusCode, check.Equals, 400)
+
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, check.IsNil)
+	resp.Body.Close()
+
+	e := Error{}
+	err = json.Unmarshal(body, &e)
+	c.Assert(err, check.IsNil)
+	c.Assert(e.ErrorName, check.Equals, "access_denied")
+}
+
+func (s *HttpTestSuite) TestTokenAuthorizationCodeInvalidRequest(c *check.C) {
+	CodeHandler(func(code, redirect_uri string) (user interface{}) {
+		return 1
+	})
+
+	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
+	defer ts.Close()
+
+	values := make(url.Values)
+	values.Add("client_id", "123")
+	values.Add("client_secret", "s3cr3t")
+	values.Add("grant_type", "authorization_code")
+	s.testInvalidRequest(c, values)
+
+	values.Add("code", "asdf")
+	s.testInvalidRequest(c, values)
+}
+
+func (s *HttpTestSuite) TestTokenInvalidClientId(c *check.C) {
+	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
+	defer ts.Close()
+
+	values := make(url.Values)
+	values.Add("grant_type", "bogus")
+	values.Add("client_id", "invalid")
+	values.Add("client_secret", "s3cr3t")
+	resp, err := http.PostForm(ts.URL, values)
+	c.Assert(err, check.IsNil)
+	c.Assert(resp.StatusCode, check.Equals, 400)
+
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, check.IsNil)
+	resp.Body.Close()
+
+	e := Error{}
+	err = json.Unmarshal(body, &e)
+	c.Assert(err, check.IsNil)
+	c.Assert(e.ErrorName, check.Equals, "invalid_client")
+}
+
+func (s *HttpTestSuite) TestTokenInvalidClientSecret(c *check.C) {
+	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
+	defer ts.Close()
+
+	values := make(url.Values)
+	values.Add("grant_type", "bogus")
+	values.Add("client_id", "123")
+	values.Add("client_secret", "invalid")
+	resp, err := http.PostForm(ts.URL, values)
+	c.Assert(err, check.IsNil)
+	c.Assert(resp.StatusCode, check.Equals, 400)
+
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, check.IsNil)
+	resp.Body.Close()
+
+	e := Error{}
+	err = json.Unmarshal(body, &e)
+	c.Assert(err, check.IsNil)
+	c.Assert(e.ErrorName, check.Equals, "invalid_client")
+}
+
+func (s *HttpTestSuite) TestTokenInvalidRequest(c *check.C) {
+	values := make(url.Values)
+	s.testInvalidRequest(c, values)
+
+	values.Add("grant_type", "authorization_code")
+	s.testInvalidRequest(c, values)
+
+	values.Add("client_id", "123")
+	s.testInvalidRequest(c, values)
+}
+
+func (s *HttpTestSuite) TestTokenPasswordInvalidRequest(c *check.C) {
+	PasswordGrantHandler(func(username string, password string) (user interface{}) {
+		return 1
+	})
+
+	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
+	defer ts.Close()
+
+	values := make(url.Values)
+	values.Add("client_id", "123")
+	values.Add("client_secret", "s3cr3t")
+	values.Add("grant_type", "password")
+	s.testInvalidRequest(c, values)
+
+	values.Add("username", "asdf")
+	s.testInvalidRequest(c, values)
+}
+
+func (s *HttpTestSuite) TestTokenPassword(c *check.C) {
+	PasswordGrantHandler(func(username string, password string) (user interface{}) {
+		return 1
+	})
+
+	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
+	defer ts.Close()
+
+	values := make(url.Values)
+	values.Add("client_id", "123")
+	values.Add("client_secret", "s3cr3t")
+	values.Add("grant_type", "password")
+	values.Add("username", "testuser")
+	values.Add("password", "testpassword")
+
+	resp, _ := http.PostForm(ts.URL, values)
+	c.Assert(resp.StatusCode, check.Equals, 200)
+
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, check.IsNil)
+	resp.Body.Close()
+
+	token := new(TokenResponse)
+	err = json.Unmarshal(body, token)
+	c.Assert(err, check.IsNil)
+
+	c.Assert(token.AccessToken, check.Equals, "test_access_token")
+	c.Assert(token.RefreshToken, check.Equals, "test_refresh_token")
+	c.Assert(token.ExpiresIn, check.Equals, 3600)
+	c.Assert(token.TokenType, check.Equals, "Bearer")
+}
+
+func (s *HttpTestSuite) TestTokenUnsupportedGrantType(c *check.C) {
+	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
+	defer ts.Close()
+
+	values := make(url.Values)
+	values.Add("grant_type", "bogus")
+	values.Add("client_id", "123")
+	values.Add("client_secret", "s3cr3t")
+	resp, err := http.PostForm(ts.URL, values)
+	c.Assert(err, check.IsNil)
+	c.Assert(resp.StatusCode, check.Equals, 400)
+
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, check.IsNil)
+	resp.Body.Close()
+
+	e := Error{}
+	err = json.Unmarshal(body, &e)
+	c.Assert(err, check.IsNil)
+	c.Assert(e.ErrorName, check.Equals, "unsupported_grant_type")
+}
+
+func (s *HttpTestSuite) TestTokenPasswordInvalidGrant(c *check.C) {
+	PasswordGrantHandler(func(username string, password string) (user interface{}) {
+		return nil
+	})
+
+	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
+	defer ts.Close()
+
+	values := make(url.Values)
+	values.Add("grant_type", "password")
+	values.Add("client_id", "123")
+	values.Add("client_secret", "s3cr3t")
+	values.Add("username", "test_user")
+	values.Add("password", "invalid")
+	resp, err := http.PostForm(ts.URL, values)
+	c.Assert(err, check.IsNil)
+	c.Assert(resp.StatusCode, check.Equals, 400)
+
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, check.IsNil)
+	resp.Body.Close()
+
+	e := Error{}
+	err = json.Unmarshal(body, &e)
+	c.Assert(err, check.IsNil)
+	c.Assert(e.ErrorName, check.Equals, "invalid_grant")
+}
+
+func (s *HttpTestSuite) TestTokenPasswordUnsupportedGrant(c *check.C) {
+	ts := httptest.NewServer(http.HandlerFunc(TokenEndpoint))
+	defer ts.Close()
+
+	values := make(url.Values)
+	values.Add("grant_type", "password")
+	values.Add("client_id", "123")
+	values.Add("client_secret", "s3cr3t")
+	resp, err := http.PostForm(ts.URL, values)
+	c.Assert(err, check.IsNil)
+	c.Assert(resp.StatusCode, check.Equals, 400)
+
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, check.IsNil)
+	resp.Body.Close()
+
+	e := Error{}
+	err = json.Unmarshal(body, &e)
+	c.Assert(err, check.IsNil)
+	c.Assert(e.ErrorName, check.Equals, "unsupported_grant_type")
 }
